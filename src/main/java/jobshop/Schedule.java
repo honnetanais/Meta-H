@@ -20,6 +20,17 @@ public class Schedule {
         }
     }
 
+    public String toString() {
+        String bla = "";
+        for(int j = 0 ; j < pb.numJobs ; j++) {
+            bla +="Job number "+ j + " \n";
+            for (int i = 0; i < pb.numTasks ; i++ ) {
+                bla +="Task number "+ i +" starts at "+ times[j][i] + " \n";
+            }
+        }
+        return bla;
+    }
+
     public int startTime(int job, int task) {
         return times[job][task];
     }
@@ -40,7 +51,7 @@ public class Schedule {
         for (int machine = 0 ; machine < pb.numMachines ; machine++) {
             for(int j1=0 ; j1<pb.numJobs ; j1++) {
                 int t1 = pb.task_with_machine(j1, machine);
-                for(int j2=j1+1 ; j2<pb.numJobs ; j2++) {
+                for(int j2=j1+1 ; j2<pb.numJobs ; j2++){
                     int t2 = pb.task_with_machine(j2, machine);
 
                     boolean t1_first = startTime(j1, t1) + pb.duration(j1, t1) <= startTime(j2, t2);
@@ -132,4 +143,6 @@ public class Schedule {
         assert isCriticalPath(path);
         return path;
     }
+
+
 }

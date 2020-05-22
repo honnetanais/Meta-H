@@ -5,6 +5,7 @@ import jobshop.Result;
 import jobshop.Schedule;
 import jobshop.Solver;
 import jobshop.solvers.BasicSolver;
+
 import org.junit.Test;
 
 import java.io.IOException;
@@ -44,6 +45,7 @@ public class EncodingTests {
         enc.jobs[enc.nextToSet++] = 1;
 
         sched = enc.toSchedule();
+        System.out.println(sched);
         assert sched.isValid();
         assert sched.makespan() == 14;
     }
@@ -62,6 +64,7 @@ public class EncodingTests {
         enc.jobs[enc.nextToSet++] = 1;
 
         Schedule sched = enc.toSchedule();
+        System.out.println(sched);
         assert sched.isValid();
         assert sched.makespan() == 12;
 

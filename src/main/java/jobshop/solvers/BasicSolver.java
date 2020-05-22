@@ -15,7 +15,6 @@ public class BasicSolver implements Solver {
                 sol.jobs[sol.nextToSet++] = j;
             }
         }
-
         return new Result(instance, sol.toSchedule(), Result.ExitCause.Blocked);
     }
 }

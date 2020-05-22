@@ -24,9 +24,16 @@ public class Main {
         solvers = new HashMap<>();
         solvers.put("basic", new BasicSolver());
         solvers.put("random", new RandomSolver());
+        solvers.put("SPT",new GreedySolver_SPT());
+        solvers.put("LRPT",new GreedySolver_LRPT());
+        solvers.put("EST_SPT",new GreedySolver_EST_SPT());
+        solvers.put("EST_LRPT",new GreedySolver_EST_LRPT());
+        solvers.put("descent",new DescentSolver());
+        solvers.put("taboo",new TabooSolver());
+
+
         // add new solvers here
     }
-
 
     public static void main(String[] args) {
         ArgumentParser parser = ArgumentParsers.newFor("jsp-solver").build()

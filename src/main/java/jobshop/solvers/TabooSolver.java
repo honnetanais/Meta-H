@@ -9,7 +9,7 @@ import jobshop.encodings.Task;
 import java.util.ArrayList;
 import java.util.List;
 
-public class DescentSolver implements Solver {
+public class TabooSolver implements Solver {
 
     /**
      * A block represents a subsequence of the critical path such that all tasks in it execute on the same machine.
@@ -92,17 +92,49 @@ public class DescentSolver implements Solver {
         }
     }
 
+
+
+
+
     @Override
     public Result solve(Instance instance, long deadline) {
 
-        ResourceOrder s = solu(instance).copy(); // s* = s_init = glouton(Pb)
-        Boolean amelioration = true;
+        ResourceOrder s = solu(instance).copy(); //s_init
+        int[][] sTaboo = new int[instance.numTasks*instance.numJobs][instance.numTasks*instance.numJobs];
+        ResourceOrder s_etoile = s.copy();
+
         int time_out = 0;
+        int dureeTaboo = 10;
+        int maxIter = 100;
+        int k = 0;
 
-        while (amelioration && !(time_out == 100)){
+        while (k<maxIter && !(time_out == 100)){
 
-            List<DescentSolver.Block> blocks = blocksOfCriticalPath(s,instance);
+            k++;
+            //TEST
+            //System.out.println("Etape = " + k);
+
+            List<Block> blocks = blocksOfCriticalPath(s,instance);
             ArrayList<ResourceOrder> all_neighbours = new ArrayList<ResourceOrder>();
+            ArrayList<Swap> all_swaps = new ArrayList<Swap>();
+
+            //TEST
+            /*
+            System.out.println("s = ");
+            System.out.println(s.toString());
+            System.out.println("Critical Path =  ");
+            System.out.println(s.toSchedule().criticalPath());
+            System.out.println(" sTaboo = ");
+            for(int i = 0 ; i < sTaboo.length; i++ ){
+                for(int j = 0; j< sTaboo[i].length; j++){
+
+                    System.out.print(" "+sTaboo[i][j]);
+                }
+                System.out.print("\n");
+            }
+            for(int i = 0 ; i < blocks.size(); i++){
+               System.out.println(blocks.get(i));
+            }*/
 
             /*Pour calculer la liste de voisin d'un ResourceOrder*/
             for(int i = 0; i < blocks.size(); i++){//pour chaque block
@@ -110,55 +142,74 @@ public class DescentSolver implements Solver {
                     ResourceOrder new_neighbor = s.copy();
                     neighbors(blocks.get(i)).get(j).applyOn(new_neighbor);
                     all_neighbours.add(new_neighbor);
-
+                    all_swaps.add(neighbors(blocks.get(i)).get(j)); //on récupère la liste de swap pour voir si ils ne sont pas Taboo
                 }
             }
 
-            /*On choisit le meilleur voisin */
+            //TEST
+            /*
+
+            System.out.println("NEIGHBOURS");
+            for(int i = 0 ; i < all_neighbours.size(); i++){
+                System.out.println(all_neighbours.get(i));
+            }
+            System.out.println("SWAPS");
+            for(int i = 0 ; i < all_swaps.size(); i++){
+                System.out.println(all_swaps.get(i));
+            }*/
+
+            /*On choisit le meilleur voisin non taboo */
             int min = Integer.MAX_VALUE;
-            int min_k = -1;
-            for(int k = 0 ; k < all_neighbours.size() ; k++){
-                if(all_neighbours.get(k).toSchedule().makespan() < min){
-                    min = all_neighbours.get(k).toSchedule().makespan();
-                    min_k = k;
+            int min_j = -1;
+            for(int j = 0 ; j < all_neighbours.size() ; j++){
+                if(all_neighbours.get(j).toSchedule().makespan() < min){
+                    if(sTaboo[all_swaps.get(j).t1+all_swaps.get(j).machine*s.tasksByMachine[0].length][all_swaps.get(j).t2+all_swaps.get(j).machine*s.tasksByMachine[0].length] <= k){ //if notTaboo
+                        //numero de tâche = t1(ou t2) + num de machine * taille
+                        min = all_neighbours.get(j).toSchedule().makespan();
+                        min_j = j;
+                    }
                 }
             }
 
-            amelioration = (min <= s.toSchedule().makespan()  );
-            if(amelioration){
-                s = all_neighbours.get(min_k).copy();
+            if(min_j != -1){ //on ne rentre pas ici si on a pas de voisins
+                s = all_neighbours.get(min_j).copy();
+                sTaboo[all_swaps.get(min_j).t1+all_swaps.get(min_j).machine*s.tasksByMachine[0].length][all_swaps.get(min_j).t2+all_swaps.get(min_j).machine*s.tasksByMachine[0].length] = k + dureeTaboo;
+
+                if(min <= s_etoile.toSchedule().makespan()){ //si la solution s est meilleur que s_etoile, on met à jour s_etoile
+                    s_etoile = s.copy();
+                }
             }
             time_out++;
         }
-        return new Result(instance, s.toSchedule(), Result.ExitCause.Blocked);
+        return new Result(instance, s_etoile.toSchedule(), Result.ExitCause.Blocked);
     }
 
     /**
      * Returns a list of all blocks of the critical path.
      */
-    List<DescentSolver.Block> blocksOfCriticalPath(ResourceOrder ro, Instance instance) {
+    List<Block> blocksOfCriticalPath(ResourceOrder ro, Instance instance) {
 
         List<Task> crit = ro.toSchedule().criticalPath(); //Le critical path de notre ResourceOrder solution
-        ArrayList<DescentSolver.Block> blocks = new ArrayList<DescentSolver.Block>(); //Le tableau des différents blocks
+        ArrayList<Block> blocks = new ArrayList<Block>(); //Le tableau des différents blocks
         Boolean new_b = false; //Indique si on trouve un nouveau block
 
-        Task previous_task = crit.get(0); //previous_task est la tâche à laquelle on compare la tâche suivante pour savoir si elles sont de la même machine ; ici initialisée comme la première tâche du critical path
+        Task previous_task = crit.get(0); //previous_task est la tâche à laquelle on compare la tâche suivante pour savoir si elles sont de la même machine ; ici initialisé comme la première tâche du critical path
 
         for (int i = 1; i < crit.size(); i++) {
             while (i<crit.size() && (instance.machine(previous_task) == instance.machine(crit.get(i)))){
                 new_b = true;
                 i++;
             }
-            if (new_b) { // Si new_b on ajoute un block
+            if (new_b) {
                 int index1 = 0;
                 while((index1 < instance.numJobs) && !(ro.tasksByMachine[instance.machine(previous_task)][index1].equals(previous_task))){ //on cherche le num d'index de previous_task
                     index1++;
                 }
                 int index2 = 0;
                 while((index2 < instance.numJobs) && !(ro.tasksByMachine[instance.machine(crit.get(i-1))][index2].equals(crit.get(i-1)))){ //idem pour la tâche finale
-                        index2++;
+                    index2++;
                 }
-                DescentSolver.Block b = new DescentSolver.Block(instance.machine(previous_task),index1, index2); //On crée le block en question
+                Block b = new Block(instance.machine(previous_task),index1, index2); //On crée le block en question
                 blocks.add(b); // On l'ajoute à notre liste de blocks
                 new_b = false; //Plus de nouveau bloc
             }
@@ -282,5 +333,4 @@ public class DescentSolver implements Solver {
         return sol;
     }
 }
-
 
